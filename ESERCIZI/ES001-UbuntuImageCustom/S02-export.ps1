@@ -1,0 +1,1 @@
+docker save gitlab-pipeline:v1 > gitlab-pipeline_v1.tar
