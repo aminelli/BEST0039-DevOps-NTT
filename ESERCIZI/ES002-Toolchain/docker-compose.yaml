@@ -41,11 +41,18 @@ services:
     <<: *default_hosts    
     volumes:
       - jenkins-home:/var/jenkins_home
+    # command: >
+    #   - sh
+    #   - -c
+    #   - |
+    #       apt-get update && apt-get install -y curl net-tools iputils-ping
+    #       openssl s_client -connect 10.0.0.43:5443 -showcerts < /dev/null | sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' > /usr/local/share/ca-certificates/gitlab.crt
+    #       update-ca-certificates
 
   jenkins-ssh-agent:
     image: 'jenkins/ssh-agent'
-    depends_on:
-      - jenkins
+    # depends_on:
+    #   - jenkins
     container_name: jenkins-ssh-agent
     hostname: jenkins-ssh-agent
     # restart: always
@@ -63,6 +70,34 @@ services:
       - -c
       - |
           apt-get update && apt-get install -y curl net-tools iputils-ping
+          openssl s_client -connect 10.0.0.43:5443 -showcerts < /dev/null | sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' > /usr/local/share/ca-certificates/gitlab.crt
+          update-ca-certificates
+          curl -sO http://10.0.0.43:8081/jnlpJars/agent.jar
+          java -jar agent.jar -url http://10.0.0.43:8081/ -secret 5861e7b20bf66cd742f4244b6577e5dc410c29becc58f089974597a3a1091081 -name "jenkins-ssh-agent" -webSocket -workDir "/home/jenkins/agent"
+
+  jenkins-ssh-agent2:
+    image: 'jenkins/ssh-agent'
+    # depends_on:
+    #  - jenkins
+    container_name: jenkins-ssh-agent2
+    hostname: jenkins-ssh-agent2
+    # restart: always
+    <<: *default_hosts    
+    networks:
+      - net-corso-devops
+    # environment:
+    #  JENKINS_URL: 'http://jenkins:8080'
+    #  JENKINS_AGENT_NAME: 'jenkins-ssh-agent'
+    #  JENKINS_AGENT_WORKDIR: '/home/jenkins/agent'
+    # volumes:
+    #  - jenkins-home:/home/jenkins/agent
+    command: >
+      - sh
+      - -c
+      - |
+          apt-get update && apt-get install -y curl net-tools iputils-ping
+          openssl s_client -connect 10.0.0.43:5443 -showcerts < /dev/null | sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' > /usr/local/share/ca-certificates/gitlab.crt
+          update-ca-certificates
           curl -sO http://10.0.0.43:8081/jnlpJars/agent.jar
           java -jar agent.jar -url http://10.0.0.43:8081/ -secret 5861e7b20bf66cd742f4244b6577e5dc410c29becc58f089974597a3a1091081 -name "jenkins-ssh-agent" -webSocket -workDir "/home/jenkins/agent"
 

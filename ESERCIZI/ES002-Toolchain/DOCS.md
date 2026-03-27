@@ -39,6 +39,9 @@ docker compose -p corso-devops up -d jenkins
 # Solo Jenkins ssh agent
 docker compose -p corso-devops up -d jenkins-ssh-agent
 
+# Solo Jenkins ssh agent 2 (se previsto nel compose)
+docker compose -p corso-devops up -d jenkins-ssh-agent2
+
 # Solo SonarQube
 docker compose -p corso-devops up -d sonar
 
@@ -80,11 +83,20 @@ Per recuperare la password di Jenkins:
 
 ```sh
 docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+
+# Post installazione
+apt-get update && apt-get install -y curl wget net-tools iputils-ping
+
+
+# Risoluzione problemi:
+# Certificato GitLab
+openssl s_client -connect 10.0.0.43:5443 -showcerts < /dev/null | sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' > /usr/local/share/ca-certificates/gitlab.crt
+update-ca-certificates
 ```
 
 Credenziali:
 admin
-9e7c12045fa94bc2bacef6e8af89604e
+4c4ce5269c9b4a05a4efc5d5ab44e6ce
 
 corso
 corso
@@ -98,7 +110,9 @@ Plugins Jenkins da installare:
 - https://plugins.jenkins.io/docker-workflow/
 - https://plugins.jenkins.io/docker-commons/
 
----
+
+
+
 
 ## SonarQube
 
