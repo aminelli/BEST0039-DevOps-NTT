@@ -1,14 +1,18 @@
 
+x-hosts: &default_hosts
+  extra_hosts:
+    - 'gitlab.corso.local:10.0.0.43'
+
 services:
 
   gitlab:
     image: 'gitlab/gitlab-ce:nightly'
     container_name: gitlab
     hostname: 'gitlab.corso.local'
-    # restart: always
+    restart: always
     environment:
       GITLAB_OMNIBUS_CONFIG: |
-        external_url 'http://gitlab.corso.local'
+        external_url 'https://gitlab.corso.local'
         gitlab_rails['gitlab_shell_ssh_port'] = 5022
     networks:
       - net-corso-devops
@@ -16,6 +20,7 @@ services:
       - '9080:80'
       - '5443:443'
       - '5022:22'
+    <<: *default_hosts
     volumes:
       - 'gitlab-config:/etc/gitlab'
       - 'gitlab-logs:/var/log/gitlab'
@@ -23,10 +28,69 @@ services:
     shm_size: '256m'
 
 
+  jenkins:
+    image: 'jenkins/jenkins:lts'
+    container_name: jenkins
+    hostname: jenkins
+    restart: always
+    networks:
+      - net-corso-devops
+    ports:
+      - '8081:8080'
+      - '50000:50000'
+    <<: *default_hosts    
+    volumes:
+      - jenkins-home:/var/jenkins_home
+
+  jenkins-ssh-agent:
+    image: 'jenkins/ssh-agent'
+    depends_on:
+      - jenkins
+    container_name: jenkins-ssh-agent
+    hostname: jenkins-ssh-agent
+    # restart: always
+    <<: *default_hosts    
+    networks:
+      - net-corso-devops
+    # environment:
+    #  JENKINS_URL: 'http://jenkins:8080'
+    #  JENKINS_AGENT_NAME: 'jenkins-ssh-agent'
+    #  JENKINS_AGENT_WORKDIR: '/home/jenkins/agent'
+    # volumes:
+    #  - jenkins-home:/home/jenkins/agent
+    command: >
+      - sh
+      - -c
+      - |
+          apt-get update && apt-get install -y curl net-tools iputils-ping
+          curl -sO http://10.0.0.43:8081/jnlpJars/agent.jar
+          java -jar agent.jar -url http://10.0.0.43:8081/ -secret 5861e7b20bf66cd742f4244b6577e5dc410c29becc58f089974597a3a1091081 -name "jenkins-ssh-agent" -webSocket -workDir "/home/jenkins/agent"
+
+
+  sonar:
+    image: 'sonarqube:latest'
+    container_name: sonar
+    hostname: sonar
+    restart: always
+    networks:
+      - net-corso-devops
+    ports:
+      - '9000:9000'
+    <<: *default_hosts    
+    volumes:
+      - sonarqube-data:/opt/sonarqube/data
+      - sonarqube-logs:/opt/sonarqube/logs
+      - sonarqube-extensions:/opt/sonarqube/extensions
+
+
 volumes:
   gitlab-config:
   gitlab-logs:
   gitlab-data:
+  jenkins-home:
+  sonarqube-data:
+  sonarqube-logs:
+  sonarqube-extensions:
 
 networks:
   net-corso-devops:
