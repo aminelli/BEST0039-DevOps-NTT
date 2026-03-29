@@ -1,0 +1,181 @@
+pipeline {
+    agent any
+        
+        // Variabili di Ambiente
+    environment {
+        // Cofigurazione Git
+        GIT_REPO   = 'https://gitlab.corso.local:5443/corso/ntt0039.git'
+        GIT_BRANCH = 'main'
+        
+        // Application Configuration
+        APP_PORT = '8080'
+        APP_NAME = 'corso-ntt-39'
+    }
+    
+    // Parametri utilizzabili negli stages
+    parameters {
+        string(name: 'GIT_BRANCH_PARAM', defaultValue: 'main', description: 'Branch git da buildare')  
+        booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip Unit Test')
+    }
+    
+    // Opzioni Pipeline
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timestamps()
+        timeout(time: 60, unit: 'MINUTES')
+        disableConcurrentBuilds()
+    }
+    
+    // Trigger Automatici
+    triggers {
+        // Poll SCM ogni 5 minuti
+        pollSCM('H/5 * * * *')
+        // Build periodico ogni notte alle 02:00
+        cron('0 2 * * *')
+    }
+    
+    stages {
+        
+        stage('📥 Git Checkout') {
+            // ==============================================
+            // 📥 Stage 1: Checkout del codice sorgente
+            // ==============================================
+            steps {
+                script {
+                    echo '================================================'
+                    echo '📥  Stage 1: Download Sorgenti'
+                    echo '================================================'
+                    echo "Repository: ${GIT_REPO}"
+                    echo "Branch: ${params.GIT_BRANCH_PARAM ?: GIT_BRANCH}"
+                    
+                    // Clean workspace
+                    cleanWs()
+                    
+                    // Checkout from SCM
+                    //checkout scm
+                    
+                    // Checkout con credenziali
+                     checkout([
+                         $class: 'GitSCM',
+                         branches: [[name: "*/${params.GIT_BRANCH_PARAM ?: GIT_BRANCH}"]],
+                         userRemoteConfigs: [[
+                             url: "${GIT_REPO}" //,
+                             //credentialsId: "${GIT_CREDENTIALS_ID}"
+                         ]],
+                         extensions: [
+                             [$class: 'CloneOption', depth: 1, noTags: false, shallow: true],
+                             [$class: 'CheckoutOption', timeout: 10]
+                         ]
+                     ])
+                    
+                    // Informazioni Git
+                    script {
+                        def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+                        def gitAuthor = sh(returnStdout: true, script: 'git log -1 --pretty=format:%an').trim()
+                        def gitMessage = sh(returnStdout: true, script: 'git log -1 --pretty=format:%s').trim()
+                        
+                        echo "Git Commit: ${gitCommit}"
+                        echo "Author: ${gitAuthor}"
+                        echo "Message: ${gitMessage}"
+                        
+                        currentBuild.description = "Branch: ${params.GIT_BRANCH_PARAM ?: GIT_BRANCH} | Commit: ${gitCommit.take(8)}"
+                    }
+                    
+                    // Display project info
+                    sh '''
+                        echo "Project: ${APP_NAME}"
+                        echo "Build: ${BUILD_NUMBER}"
+                        echo "Branch: ${GIT_BRANCH}"
+                        echo "Commit: ${GIT_COMMIT}"
+                        ls -la
+                    '''
+                }
+                
+            } 
+            post {
+            success {
+                    echo '✅ Sorgenti scaricati con successo'
+                }
+                failure {
+                    echo '❌ Errore nel download dei sorgenti'
+                }
+            }
+        }
+
+        stage('🔍 Analisi Statica - SonarQube') {
+            steps {
+                script {
+                    echo '================================================'
+                    echo '🔍 Stage 2: Analisi Statica con SonarQube'
+                    echo '================================================'
+                    
+                    //withSonarQubeEnv('SonarQube') {
+                    sh './mvnw sonar:sonar'
+                    //}
+                    
+                    echo '⏳ In attesa del Quality Gate...'
+                }
+            }
+            post {
+                success {
+                    echo '✅ Analisi SonarQube completata'
+                }
+                failure {
+                    echo '❌ Errore nell\'analisi SonarQube'
+                }
+            }
+        }
+
+        stage('🧪 Unit Test') {
+            when {
+                expression { return !params.SKIP_TESTS }
+            }
+            steps {
+                script {
+                    echo '================================================'
+                    echo '🧪 Stage 3: Esecuzione Unit Test'
+                    echo '================================================'
+                    
+                    sh '''
+                        echo Esecuzione Unit Test...
+                        ./mvnw clean test jacoco:report                            
+                    '''
+                    
+                    // Publish test results
+                    echo '📊 Pubblicazione risultati test...'
+                    junit testResults: '**/target/surefire-reports/*.xml', 
+                         allowEmptyResults: false
+                    
+                    // Publish coverage report
+                    // echo '📈 Pubblicazione report coverage...'
+                    // jacoco(
+                    //    execPattern: '**/target/jacoco.exec',
+                    //    classPattern: '**/target/classes',
+                    //    sourcePattern: '**/src/main/java',
+                    //    exclusionPattern: '**/test/**'
+                    //)
+                }
+            }
+            post {
+                success {
+                    echo '✅ Unit test completati con successo'
+                }
+                failure {
+                    echo '❌ Unit test falliti'
+                }
+            }
+        }
+
+
+
+    }    
+    
+}
+
+
+
+
+
+
+
+

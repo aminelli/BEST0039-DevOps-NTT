@@ -1,0 +1,53 @@
+services:
+  devops-app:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    image: devops-app:latest
+    container_name: devops-spring-app
+    ports:
+      - "8080:8080"
+    environment:
+      # Spring Boot Configuration
+      - SPRING_PROFILES_ACTIVE=prod
+      # JVM Options
+      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Restart policy
+    restart: unless-stopped
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Networks
+    networks:
+      - devops-network
+
+networks:
+  devops-network:
+    driver: bridge
+
+# ==============================================================================
+# Usage:
+# - Build and start: docker-compose up -d --build
+# - Stop: docker-compose down
+# - View logs: docker-compose logs -f devops-app
+# - Scale: docker-compose up -d --scale devops-app=3
+# ==============================================================================

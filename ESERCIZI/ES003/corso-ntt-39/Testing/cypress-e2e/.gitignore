@@ -1,0 +1,42 @@
+# Cypress
+cypress/screenshots
+cypress/videos
+cypress/reports
+cypress/downloads
+cypress/.DS_Store
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test Results
+mochawesome-report/
+test-results/
+junit/
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build
+dist/
+build/

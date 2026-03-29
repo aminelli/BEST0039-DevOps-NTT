@@ -1,0 +1,39 @@
+{
+  "validUsers": [
+    {
+      "username": "user",
+      "password": "password",
+      "roles": ["USER"],
+      "description": "Standard user with USER role"
+    },
+    {
+      "username": "admin",
+      "password": "admin",
+      "roles": ["USER", "ADMIN"],
+      "description": "Administrator with USER and ADMIN roles"
+    },
+    {
+      "username": "demo",
+      "password": "demo",
+      "roles": ["USER"],
+      "description": "Demo user with USER role"
+    }
+  ],
+  "invalidUsers": [
+    {
+      "username": "invalid",
+      "password": "invalid",
+      "description": "Non-existent user"
+    },
+    {
+      "username": "user",
+      "password": "wrongpassword",
+      "description": "Valid username with wrong password"
+    },
+    {
+      "username": "",
+      "password": "",
+      "description": "Empty credentials"
+    }
+  ]
+}

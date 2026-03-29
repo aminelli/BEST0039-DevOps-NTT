@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: header('Login - DevOps App')}"></head>
+
+<body class="d-flex flex-column min-vh-100">
+    <!-- Navbar -->
+    <div th:replace="~{fragments/header :: navbar}"></div>
+
+    <!-- Main Content -->
+    <main class="flex-shrink-0">
+        <section class="py-5">
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-md-6 col-lg-5">
+                        <!-- Login Card -->
+                        <div class="card shadow-lg">
+                            <div class="card-header bg-primary text-white text-center py-3">
+                                <h4 class="mb-0">
+                                    <i class="bi bi-box-arrow-in-right"></i> Accedi
+                                </h4>
+                            </div>
+                            <div class="card-body p-4">
+                                <!-- Error Alert -->
+                                <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                    <span th:text="${error}">Errore di login</span>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+
+                                <!-- Logout Success Message -->
+                                <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert">
+                                    <i class="bi bi-check-circle-fill"></i>
+                                    <span th:text="${message}">Logout effettuato</span>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+
+                                <!-- Login Form -->
+                                <form th:action="@{/login}" method="post">
+                                    <div class="mb-3">
+                                        <label for="username" class="form-label">
+                                            <i class="bi bi-person"></i> Username
+                                        </label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="username" 
+                                               name="username" 
+                                               placeholder="Inserisci username"
+                                               required 
+                                               autofocus>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="password" class="form-label">
+                                            <i class="bi bi-lock"></i> Password
+                                        </label>
+                                        <input type="password" 
+                                               class="form-control" 
+                                               id="password" 
+                                               name="password" 
+                                               placeholder="Inserisci password"
+                                               required>
+                                    </div>
+
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-primary btn-lg">
+                                            <i class="bi bi-box-arrow-in-right"></i> Accedi
+                                        </button>
+                                    </div>
+                                </form>
+
+                                <!-- Demo Credentials Info -->
+                                <div class="mt-4 p-3 bg-light rounded">
+                                    <h6 class="fw-bold mb-2">
+                                        <i class="bi bi-info-circle text-primary"></i> Credenziali Demo
+                                    </h6>
+                                    <small class="text-muted">
+                                        <strong>User:</strong> user / password<br>
+                                        <strong>Admin:</strong> admin / admin123<br>
+                                        <strong>Demo:</strong> demo / demo
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="card-footer text-center py-3">
+                                <a th:href="@{/home}" class="text-decoration-none">
+                                    <i class="bi bi-arrow-left"></i> Torna alla Home
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

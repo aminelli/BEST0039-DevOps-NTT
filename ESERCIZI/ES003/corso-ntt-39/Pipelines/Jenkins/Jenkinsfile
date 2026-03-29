@@ -1,0 +1,471 @@
+pipeline {
+    agent any
+    
+    environment {
+        // Maven Configuration
+        MAVEN_HOME = tool 'Maven'
+        MAVEN_OPTS = '-Dmaven.repo.local=.m2/repository'
+        
+        // SonarQube Configuration
+        SONAR_HOST_URL = 'http://10.0.0.43:9000'
+        SONAR_PROJECT_KEY = 'corso-ntt-39'
+        SONAR_TOKEN = credentials('sonarqube-token')
+        
+        // Docker Configuration
+        DOCKER_IMAGE_NAME = 'corso-ntt-39'
+        DOCKER_REGISTRY = 'docker.io'
+        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'
+        DOCKER_IMAGE_TAG = "${env.BUILD_NUMBER}"
+        
+        // Kubernetes Configuration
+        K8S_NAMESPACE = 'production'
+        K8S_DEPLOYMENT_NAME = 'corso-ntt-39'
+        K8S_CREDENTIALS_ID = 'kubeconfig-credentials'
+        
+        // Application Configuration
+        APP_PORT = '8080'
+        APP_NAME = 'corso-ntt-39'
+    }
+    
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timestamps()
+        timeout(time: 60, unit: 'MINUTES')
+        disableConcurrentBuilds()
+    }
+    
+    stages {
+        stage('📥 Download Sorgenti') {
+            steps {
+                
+                script {
+                    echo '================================================'
+                    echo '📥  Stage 1: Download Sorgenti'
+                    echo '================================================'
+                    
+                    // Clean workspace
+                    cleanWs()
+                    
+                    // Checkout from SCM
+                    checkout scm
+                    
+                    // Display project info
+                    sh '''
+                        echo "Project: ${APP_NAME}"
+                        echo "Build: ${BUILD_NUMBER}"
+                        echo "Branch: ${GIT_BRANCH}"
+                        echo "Commit: ${GIT_COMMIT}"
+                        ls -la
+                    '''
+                }
+            }
+            post {
+                success {
+                    echo '✅ Sorgenti scaricati con successo'
+                }
+                failure {
+                    echo '❌ Errore nel download dei sorgenti'
+                }
+            }
+        }
+        
+        stage('🔍 Analisi Statica - SonarQube') {
+            steps {
+                script {
+                    echo '================================================'
+                    echo '🔍 Stage 2: Analisi Statica con SonarQube'
+                    echo '================================================'
+                    
+                    withSonarQubeEnv('SonarQube') {
+                        sh '''
+                            ${MAVEN_HOME}/bin/mvn clean verify sonar:sonar \
+                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                -Dsonar.host.url=${SONAR_HOST_URL} \
+                                -Dsonar.token=${SONAR_TOKEN} \
+                                -Dsonar.java.binaries=target/classes \
+                                -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+                        '''
+                    }
+                    
+                    echo '⏳ In attesa del Quality Gate...'
+                }
+            }
+            post {
+                success {
+                    echo '✅ Analisi SonarQube completata'
+                }
+                failure {
+                    echo '❌ Errore nell\'analisi SonarQube'
+                }
+            }
+        }
+        
+        stage('🚦 Quality Gate') {
+            steps {
+                script {
+                    echo '================================================'
+                    echo '🚦 Verifica Quality Gate SonarQube'
+                    echo '================================================'
+                    
+                    timeout(time: 5, unit: 'MINUTES') {
+                        waitForQualityGate abortPipeline: true
+                    }
+                }
+            }
+            post {
+                success {
+                    echo '✅ Quality Gate superato'
+                }
+                failure {
+                    echo '❌ Quality Gate fallito - Build abortita'
+                }
+            }
+        }
+        
+        stage('🧪 Unit Test') {
+            steps {
+                script {
+                    echo '================================================'
+                    echo '🧪 Stage 3: Esecuzione Unit Test'
+                    echo '================================================'
+                    
+                    sh '''
+                        ${MAVEN_HOME}/bin/mvn test \
+                            -Dmaven.test.failure.ignore=false
+                    '''
+                    
+                    // Publish test results
+                    echo '📊 Pubblicazione risultati test...'
+                    junit testResults: '**/target/surefire-reports/*.xml', 
+                         allowEmptyResults: false
+                    
+                    // Publish coverage report
+                    echo '📈 Pubblicazione report coverage...'
+                    jacoco(
+                        execPattern: '**/target/jacoco.exec',
+                        classPattern: '**/target/classes',
+                        sourcePattern: '**/src/main/java',
+                        exclusionPattern: '**/test/**'
+                    )
+                }
+            }
+            post {
+                success {
+                    echo '✅ Unit test completati con successo'
+                }
+                failure {
+                    echo '❌ Unit test falliti'
+                }
+            }
+        }
+        
+        stage('📦 Generazione JAR') {
+            steps {
+                script {
+                    echo '================================================'
+                    echo '📦 Stage 4: Generazione Artifact JAR'
+                    echo '================================================'
+                    
+                    sh '''
+                        ${MAVEN_HOME}/bin/mvn package -DskipTests
+                        
+                        echo "JAR generato:"
+                        ls -lh target/*.jar
+                        
+                        # Verifica che il JAR sia stato creato
+                        if [ ! -f target/*.jar ]; then
+                            echo "❌ Errore: JAR non trovato!"
+                            exit 1
+                        fi
+                    '''
+                    
+                    // Archive artifacts
+                    archiveArtifacts artifacts: 'target/*.jar', 
+                                   fingerprint: true,
+                                   allowEmptyArchive: false
+                }
+            }
+            post {
+                success {
+                    echo '✅ JAR generato e archiviato con successo'
+                }
+                failure {
+                    echo '❌ Errore nella generazione del JAR'
+                }
+            }
+        }
+        
+        stage('🌐 Test E2E - Cypress') {
+            steps {
+                script {
+                    echo '================================================'
+                    echo '🌐 Stage 5: Test End-to-End con Cypress'
+                    echo '================================================'
+                    
+                    // Start Spring Boot application in background
+                    sh '''
+                        # Avvia applicazione in background
+                        ${MAVEN_HOME}/bin/mvn spring-boot:run > app.log 2>&1 &
+                        APP_PID=$!
+                        echo $APP_PID > app.pid
+                        
+                        echo "⏳ In attesa del'avvio dell'applicazione..."
+                        sleep 30
+                        
+                        # Verifica che l'applicazione sia avviata
+                        for i in {1..30}; do
+                            if curl -s http://localhost:${APP_PORT}/ > /dev/null; then
+                                echo "✅ Applicazione avviata correttamente"
+                                break
+                            fi
+                            echo "Tentativo $i/30..."
+                            sleep 2
+                        done
+                    '''
+                    
+                    // Run Cypress tests
+                    dir('Testing/cypress-e2e') {
+                        sh '''
+                            # Install dependencies
+                            npm install
+                            
+                            # Run Cypress tests in headless mode
+                            npm test || EXIT_CODE=$?
+                            
+                            echo "Cypress tests completed"
+                            exit ${EXIT_CODE:-0}
+                        '''
+                    }
+                    
+                    // Stop application
+                    sh '''
+                        if [ -f app.pid ]; then
+                            APP_PID=$(cat app.pid)
+                            echo "Stopping application (PID: $APP_PID)..."
+                            kill $APP_PID || true
+                            rm -f app.pid
+                        fi
+                    '''
+                    
+                    // Publish Cypress results
+                    publishHTML([
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'Testing/cypress-e2e/cypress/reports',
+                        reportFiles: 'index.html',
+                        reportName: 'Cypress E2E Test Report',
+                        reportTitles: 'E2E Tests'
+                    ])
+                }
+            }
+            post {
+                always {
+                    // Cleanup - stop app if still running
+                    sh '''
+                        if [ -f app.pid ]; then
+                            kill $(cat app.pid) || true
+                            rm -f app.pid
+                        fi
+                    '''
+                }
+                success {
+                    echo '✅ Test E2E completati con successo'
+                }
+                failure {
+                    echo '❌ Test E2E falliti'
+                    // Archive screenshots on failure
+                    archiveArtifacts artifacts: 'Testing/cypress-e2e/cypress/screenshots/**/*',
+                                   allowEmptyArchive: true
+                }
+            }
+        }
+        
+        stage('🐳 Build Docker Image') {
+            steps {
+                script {
+                    echo '================================================'
+                    echo '🐳 Stage 6: Creazione Immagine Docker'
+                    echo '================================================'
+                    
+                    sh '''
+                        # Build Docker image
+                        docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} \
+                                     -t ${DOCKER_IMAGE_NAME}:latest \
+                                     -f infra/Dockerfile .
+                        
+                        # Verify image
+                        docker images | grep ${DOCKER_IMAGE_NAME}
+                        
+                        # Image info
+                        echo "Image created:"
+                        docker inspect ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} --format='{{.Size}}' | \
+                            awk '{print "Size: " $1/1024/1024 " MB"}'
+                    '''
+                }
+            }
+            post {
+                success {
+                    echo '✅ Immagine Docker creata con successo'
+                }
+                failure {
+                    echo '❌ Errore nella creazione dell\'immagine Docker'
+                }
+            }
+        }
+        
+        stage('📤 Push Docker Registry') {
+            steps {
+                script {
+                    echo '================================================'
+                    echo '📤 Stage 7: Upload Immagine su Docker Hub'
+                    echo '================================================'
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: "${DOCKER_CREDENTIALS_ID}",
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        sh '''
+                            # Login to Docker Hub
+                            echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin ${DOCKER_REGISTRY}
+                            
+                            # Tag image with registry
+                            docker tag ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} \
+                                       ${DOCKER_USER}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}
+                            docker tag ${DOCKER_IMAGE_NAME}:latest \
+                                       ${DOCKER_USER}/${DOCKER_IMAGE_NAME}:latest
+                            
+                            # Push images
+                            echo "Pushing ${DOCKER_USER}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}..."
+                            docker push ${DOCKER_USER}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}
+                            
+                            echo "Pushing ${DOCKER_USER}/${DOCKER_IMAGE_NAME}:latest..."
+                            docker push ${DOCKER_USER}/${DOCKER_IMAGE_NAME}:latest
+                            
+                            echo "✅ Images pushed successfully"
+                        '''
+                    }
+                }
+            }
+            post {
+                always {
+                    // Logout from Docker Hub
+                    sh 'docker logout ${DOCKER_REGISTRY} || true'
+                }
+                success {
+                    echo '✅ Immagine caricata su Docker Hub'
+                }
+                failure {
+                    echo '❌ Errore nel caricamento dell\'immagine'
+                }
+            }
+        }
+        
+        stage('🚀 Deploy Kubernetes') {
+            steps {
+                script {
+                    echo '================================================'
+                    echo '🚀 Stage 8: Deploy su Kubernetes'
+                    echo '================================================'
+                    
+                    withKubeConfig([credentialsId: "${K8S_CREDENTIALS_ID}"]) {
+                        sh '''
+                            # Apply Kubernetes manifests
+                            echo "Deploying to namespace: ${K8S_NAMESPACE}"
+                            
+                            # Create namespace if not exists
+                            kubectl create namespace ${K8S_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+                            
+                            # Update deployment image
+                            kubectl set image deployment/${K8S_DEPLOYMENT_NAME} \
+                                ${K8S_DEPLOYMENT_NAME}=${DOCKER_USER}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} \
+                                -n ${K8S_NAMESPACE}
+                            
+                            # Wait for rollout
+                            echo "⏳ Waiting for deployment rollout..."
+                            kubectl rollout status deployment/${K8S_DEPLOYMENT_NAME} -n ${K8S_NAMESPACE} --timeout=5m
+                            
+                            # Get deployment status
+                            echo "📊 Deployment Status:"
+                            kubectl get deployment ${K8S_DEPLOYMENT_NAME} -n ${K8S_NAMESPACE}
+                            kubectl get pods -n ${K8S_NAMESPACE} -l app=${K8S_DEPLOYMENT_NAME}
+                            kubectl get svc -n ${K8S_NAMESPACE} -l app=${K8S_DEPLOYMENT_NAME}
+                        '''
+                    }
+                }
+            }
+            post {
+                success {
+                    echo '✅ Deploy su Kubernetes completato'
+                }
+                failure {
+                    echo '❌ Errore nel deploy su Kubernetes'
+                    script {
+                        // Rollback on failure
+                        withKubeConfig([credentialsId: "${K8S_CREDENTIALS_ID}"]) {
+                            sh '''
+                                echo "⚠️ Rollback in corso..."
+                                kubectl rollout undo deployment/${K8S_DEPLOYMENT_NAME} -n ${K8S_NAMESPACE} || true
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo '================================================'
+            echo '🧹 Cleanup'
+            echo '================================================'
+            
+            script {
+                // Cleanup Docker images
+                sh '''
+                    echo "Cleaning up Docker images..."
+                    docker system prune -f || true
+                '''
+                
+                // Archive logs
+                archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
+            }
+        }
+        
+        success {
+            echo '================================================'
+            echo '✅ PIPELINE COMPLETATA CON SUCCESSO'
+            echo '================================================'
+            echo "Build: ${env.BUILD_NUMBER}"
+            echo "Image: ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+            echo "Deployed to: ${K8S_NAMESPACE} namespace"
+            
+            // Send success notification (optional)
+            // emailext subject: "✅ Build Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            //          body: "Build completed successfully",
+            //          to: "team@example.com"
+        }
+        
+        failure {
+            echo '================================================'
+            echo '❌ PIPELINE FALLITA'
+            echo '================================================'
+            echo "Build: ${env.BUILD_NUMBER}"
+            echo "Check logs for details"
+            
+            // Send failure notification (optional)
+            // emailext subject: "❌ Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            //          body: "Build failed - check Jenkins for details",
+            //          to: "team@example.com"
+        }
+        
+        unstable {
+            echo '⚠️ Build unstable'
+        }
+        
+        aborted {
+            echo '🛑 Build aborted'
+        }
+    }
+}

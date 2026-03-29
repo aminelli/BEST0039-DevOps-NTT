@@ -1,0 +1,141 @@
+---
+# Namespace Configuration
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    name: production
+    environment: production
+
+---
+# ConfigMap for Application Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: corso-ntt-39-config
+  namespace: production
+  labels:
+    app: corso-ntt-39
+data:
+  application.properties: |
+    # Server Configuration
+    server.port=8080
+    server.servlet.context-path=/
+    
+    # Logging Configuration
+    logging.level.root=INFO
+    logging.level.com.corso.devops=DEBUG
+    logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} - %msg%n
+    
+    # Spring Configuration
+    spring.application.name=corso-ntt-39
+    spring.profiles.active=production
+    
+    # Actuator Configuration
+    management.endpoints.web.exposure.include=health,info,metrics,prometheus
+    management.endpoint.health.probes.enabled=true
+    management.endpoint.health.show-details=always
+    management.health.livenessState.enabled=true
+    management.health.readinessState.enabled=true
+
+---
+# Secret for Sensitive Data (example - replace with actual secrets)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: corso-ntt-39-secrets
+  namespace: production
+  labels:
+    app: corso-ntt-39
+type: Opaque
+stringData:
+  # Database credentials (if needed)
+  # db-username: "admin"
+  # db-password: "changeme"
+  
+  # API Keys (if needed)
+  # api-key: "your-api-key"
+  
+  # Spring Security (if needed)
+  # security-password: "changeme"
+
+---
+# Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: corso-ntt-39-sa
+  namespace: production
+  labels:
+    app: corso-ntt-39
+
+---
+# Role for Service Account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: corso-ntt-39-role
+  namespace: production
+  labels:
+    app: corso-ntt-39
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list"]
+
+---
+# Role Binding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: corso-ntt-39-rolebinding
+  namespace: production
+  labels:
+    app: corso-ntt-39
+subjects:
+- kind: ServiceAccount
+  name: corso-ntt-39-sa
+  namespace: production
+roleRef:
+  kind: Role
+  name: corso-ntt-39-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Network Policy (optional - for enhanced security)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: corso-ntt-39-netpol
+  namespace: production
+  labels:
+    app: corso-ntt-39
+spec:
+  podSelector:
+    matchLabels:
+      app: corso-ntt-39
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443

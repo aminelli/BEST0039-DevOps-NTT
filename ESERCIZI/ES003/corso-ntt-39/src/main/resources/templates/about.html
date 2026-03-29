@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/header :: header('About - DevOps App')}"></head>
+
+<body class="d-flex flex-column min-vh-100">
+    <!-- Navbar -->
+    <div th:replace="~{fragments/header :: navbar}"></div>
+
+    <!-- Main Content -->
+    <main class="flex-shrink-0">
+        <section class="py-5">
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-lg-10">
+                        <!-- Page Header -->
+                        <div class="text-center mb-5">
+                            <h1 class="display-4 fw-bold">
+                                <i class="bi bi-info-circle-fill text-primary"></i> About
+                            </h1>
+                            <p class="lead text-muted">
+                                Informazioni sul progetto e tecnologie utilizzate
+                            </p>
+                        </div>
+
+                        <!-- Project Info -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-file-earmark-code"></i> Panoramica del Progetto
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">
+                                    Questo progetto è stato sviluppato nell'ambito del <strong>Corso NTT DevOps</strong>
+                                    ed è un'applicazione web completa che dimostra l'integrazione di diverse 
+                                    tecnologie moderne per lo sviluppo di applicazioni enterprise.
+                                </p>
+                                <p class="card-text">
+                                    L'applicazione implementa un sistema di autenticazione sicuro, aree pubbliche 
+                                    e private, e utilizza le best practices per lo sviluppo di applicazioni Spring Boot.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Tech Stack -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-stack"></i> Stack Tecnologico
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <h6 class="fw-bold">Backend</h6>
+                                        <ul class="list-unstyled">
+                                            <li><i class="bi bi-check-circle-fill text-success"></i> Java 21</li>
+                                            <li><i class="bi bi-check-circle-fill text-success"></i> Spring Boot 4.0.4</li>
+                                            <li><i class="bi bi-check-circle-fill text-success"></i> Spring MVC</li>
+                                            <li><i class="bi bi-check-circle-fill text-success"></i> Spring Security 6</li>
+                                            <li><i class="bi bi-check-circle-fill text-success"></i> Thymeleaf Template Engine</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="fw-bold">Frontend</h6>
+                                        <ul class="list-unstyled">
+                                            <li><i class="bi bi-check-circle-fill text-primary"></i> HTML5</li>
+                                            <li><i class="bi bi-check-circle-fill text-primary"></i> CSS3</li>
+                                            <li><i class="bi bi-check-circle-fill text-primary"></i> Bootstrap 5.3</li>
+                                            <li><i class="bi bi-check-circle-fill text-primary"></i> Bootstrap Icons</li>
+                                            <li><i class="bi bi-check-circle-fill text-primary"></i> JavaScript</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Features -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-star-fill"></i> Funzionalità Implementate
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item">
+                                        <i class="bi bi-shield-lock text-primary"></i>
+                                        <strong>Sistema di Autenticazione</strong>: Login sicuro con Spring Security
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="bi bi-people text-success"></i>
+                                        <strong>Gestione Utenti</strong>: Utenti in-memory con ruoli (USER, ADMIN)
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="bi bi-lock text-warning"></i>
+                                        <strong>Password Encoding</strong>: Sicurezza con BCrypt
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="bi bi-layout-split text-info"></i>
+                                        <strong>Aree Pubbliche/Private</strong>: Separazione degli accessi
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="bi bi-phone text-purple"></i>
+                                        <strong>Design Responsive</strong>: Ottimizzato per tutti i dispositivi
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- DevOps Practices -->
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-warning text-dark">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-gear-fill"></i> DevOps Best Practices
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">
+                                    Il progetto segue le best practices DevOps:
+                                </p>
+                                <ul>
+                                    <li>Architettura MVC ben strutturata</li>
+                                    <li>Separazione delle responsabilità (Controller, Service, Config)</li>
+                                    <li>Logging appropriato per monitoring</li>
+                                    <li>Gestione sicura delle credenziali</li>
+                                    <li>Codice ben commentato e documentato</li>
+                                    <li>Pronto per containerizzazione (Docker)</li>
+                                    <li>Pronto per orchestrazione (Kubernetes)</li>
+                                    <li>Integrabile con pipeline CI/CD (Jenkins)</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Back Button -->
+                        <div class="text-center mt-4">
+                            <a th:href="@{/home}" class="btn btn-primary">
+                                <i class="bi bi-arrow-left"></i> Torna alla Home
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>
